@@ -158,6 +158,37 @@ describe('editor text edits', () => {
     expect(editor.dirty).toBe(true)
   })
 
+  it('exposes a pending text edit for the undo button', () => {
+    const { editor } = openExisting()
+
+    expect(editor.hasPendingTextEdit).toBe(false)
+
+    editor.beginTitleEdit()
+    expect(editor.hasPendingTextEdit).toBe(false)
+
+    editor.setTitle('Новая')
+    expect(editor.hasPendingTextEdit).toBe(true)
+    expect(editor.canUndo).toBe(false)
+
+    expect(editor.commitTextEdit()).toBe(true)
+    expect(editor.hasPendingTextEdit).toBe(false)
+    expect(editor.canUndo).toBe(true)
+  })
+
+  it('does not expose an empty todo as a pending undo step', () => {
+    const { editor } = openExisting()
+
+    editor.beginTodoTextEdit('todo-1')
+    editor.setTodoText('todo-1', '   ')
+
+    expect(editor.hasPendingTextEdit).toBe(false)
+
+    editor.commitTextEdit()
+
+    expect(editor.canUndo).toBe(false)
+    expect(editor.note?.todos[0]?.text).toBe('Задача')
+  })
+
   it('commits a pending text edit before undo', () => {
     const { editor } = openExisting()
 

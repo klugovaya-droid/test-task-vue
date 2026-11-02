@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TodoItem from '~/components/notes/TodoItem.vue'
 import AppButton from '~/components/ui/AppButton.vue'
 import AppInput from '~/components/ui/AppInput.vue'
@@ -7,6 +7,12 @@ import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import { useEditorStore } from '~/stores/editor'
 import { useToastStore } from '~/stores/toast'
+import {
+  hasOpenModal,
+  isEditableTarget,
+  isRedoShortcut,
+  isUndoShortcut
+} from '~/utils/keyboard'
 import {
   TITLE_MAX_LENGTH,
   TODO_TEXT_MAX_LENGTH,
@@ -67,6 +73,52 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted(() => {
+  window.addEventListener('keydown', handleHistoryShortcut)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleHistoryShortcut)
+})
+
+function handleHistoryShortcut(event: KeyboardEvent): void {
+  if (!editor.note || event.defaultPrevented) {
+    return
+  }
+
+  const undo = isUndoShortcut(event)
+  const redo = isRedoShortcut(event)
+
+  if (!undo && !redo) {
+    return
+  }
+
+  if (isEditableTarget(event.target)) {
+    return
+  }
+
+  event.preventDefault()
+
+  if (hasOpenModal()) {
+    return
+  }
+
+  if (redo) {
+    editor.redo()
+    return
+  }
+
+  editor.undo()
+}
+
+function handleUndo(): void {
+  editor.undo()
+}
+
+function handleRedo(): void {
+  editor.redo()
+}
 
 function handleTitleUpdate(value: string): void {
   titleTouched.value = true
@@ -221,6 +273,30 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
         </div>
 
         <div class="editor-page__actions">
+          <div class="editor-page__history" role="group" aria-label="История изменений">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!editor.canUndo && !editor.hasPendingTextEdit"
+              aria-label="Отменить последнее действие"
+              title="Отменить последнее действие (Ctrl+Z или Cmd+Z)"
+              @click="handleUndo"
+            >
+              <span aria-hidden="true">↶</span>
+            </AppButton>
+
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!editor.canRedo || editor.hasPendingTextEdit"
+              aria-label="Повторить действие"
+              title="Повторить действие (Ctrl+Shift+Z или Cmd+Shift+Z)"
+              @click="handleRedo"
+            >
+              <span aria-hidden="true">↷</span>
+            </AppButton>
+          </div>
+
           <AppButton v-if="!editor.isNew" variant="danger" @click="deleteDialogOpen = true">
             Удалить
           </AppButton>
@@ -384,6 +460,11 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
     flex: 0 0 auto;
     flex-wrap: wrap;
     gap: var(--space-2);
+  }
+
+  &__history {
+    display: flex;
+    gap: var(--space-1);
   }
 
   &__form {

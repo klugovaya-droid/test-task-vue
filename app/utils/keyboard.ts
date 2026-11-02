@@ -11,6 +11,26 @@ const NON_TEXT_INPUT_TYPES = new Set([
   'submit'
 ])
 
+export function isUndoShortcut(event: KeyboardEvent): boolean {
+  return (
+    !event.isComposing &&
+    isZKey(event) &&
+    hasPrimaryModifier(event) &&
+    !event.shiftKey &&
+    !event.altKey
+  )
+}
+
+export function isRedoShortcut(event: KeyboardEvent): boolean {
+  return (
+    !event.isComposing &&
+    isZKey(event) &&
+    hasPrimaryModifier(event) &&
+    event.shiftKey &&
+    !event.altKey
+  )
+}
+
 export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false
@@ -46,4 +66,12 @@ export function hasOpenModal(root?: ParentNode): boolean {
     scope.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]') !==
     null
   )
+}
+
+function isZKey(event: KeyboardEvent): boolean {
+  return event.key.toLowerCase() === 'z' || event.code === 'KeyZ'
+}
+
+function hasPrimaryModifier(event: KeyboardEvent): boolean {
+  return event.metaKey || event.ctrlKey
 }
