@@ -37,6 +37,7 @@ const classes = computed(() => [
 <style scoped lang="scss">
 .app-button {
   display: inline-flex;
+  min-width: 44px;
   min-height: 44px;
   align-items: center;
   justify-content: center;

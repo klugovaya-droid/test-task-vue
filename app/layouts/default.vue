@@ -1,3 +1,10 @@
+<script setup lang="ts">
+import AppToast from '~/components/ui/AppToast.vue'
+import { useToastStore } from '~/stores/toast'
+
+const toast = useToastStore()
+</script>
+
 <template>
   <div class="app-shell">
     <a class="skip-link" href="#main-content">Перейти к содержимому</a>
@@ -11,6 +18,8 @@
     <main id="main-content" class="app-main">
       <slot />
     </main>
+
+    <AppToast :message="toast.message" :tone="toast.tone" @dismiss="toast.dismiss()" />
   </div>
 </template>
 

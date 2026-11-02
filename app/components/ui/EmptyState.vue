@@ -1,13 +1,23 @@
 <script setup lang="ts">
-defineProps<{
-  title: string
-  description?: string
-}>()
+import { computed } from 'vue'
+
+const props = withDefaults(
+  defineProps<{
+    title: string
+    description?: string
+    headingLevel?: 1 | 2
+  }>(),
+  {
+    headingLevel: 2
+  }
+)
+
+const headingTag = computed(() => (props.headingLevel === 1 ? 'h1' : 'h2'))
 </script>
 
 <template>
   <div class="empty-state">
-    <h2 class="empty-state__title">{{ title }}</h2>
+    <component :is="headingTag" class="empty-state__title">{{ title }}</component>
     <p v-if="description" class="empty-state__description">{{ description }}</p>
     <div v-if="$slots.action" class="empty-state__action">
       <slot name="action" />

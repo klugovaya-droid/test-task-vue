@@ -56,7 +56,9 @@ async function openHome(page: Page, notes: Note[] = []): Promise<void> {
   }
 
   await page.addInitScript((data: NotesPayload) => {
-    localStorage.setItem('notes-app:data', JSON.stringify(data))
+    if (!localStorage.getItem('notes-app:data')) {
+      localStorage.setItem('notes-app:data', JSON.stringify(data))
+    }
   }, payload)
 
   await page.goto(baseUrl)

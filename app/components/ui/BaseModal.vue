@@ -293,7 +293,7 @@ function handleOverlayClick(): void {
     }
 
     &__footer {
-      flex-direction: column-reverse;
+      flex-direction: column;
 
       :deep(.app-button) {
         width: 100%;
