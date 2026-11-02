@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Nuxt / Nitro
+.nuxt/
+.output/
+.nitro/
+.cache/
+dist/
+
+# Tests and reports
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
