@@ -1,0 +1,11 @@
+.git
+.gitignore
+.nuxt
+.output
+.nitro
+.cache
+node_modules
+tests
+.data
+.DS_Store
+*.log

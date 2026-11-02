@@ -283,4 +283,36 @@ describe('editor page', () => {
       await page.close()
     }
   })
+
+  it('shows a warning when writing notes to localStorage fails', async () => {
+    const page = await browser.newPage()
+
+    try {
+      await page.addInitScript(() => {
+        const originalSetItem = Storage.prototype.setItem
+
+        Storage.prototype.setItem = function (key: string, value: string) {
+          if (key === 'notes-app:data') {
+            throw new Error('Quota exceeded')
+          }
+
+          originalSetItem.call(this, key, value)
+        }
+      })
+
+      await page.goto(`${baseUrl}/notes/new`)
+
+      await page.getByLabel('Название').fill('Без места')
+      await page.getByLabel('Новая задача').fill('Задача')
+      await page.getByLabel('Новая задача').press('Enter')
+      await page.getByRole('button', { name: 'Сохранить', exact: true }).click()
+
+      await expect
+        .poll(() => page.getByText('Не удалось сохранить заметки в браузере.').isVisible())
+        .toBe(true)
+      await expect.poll(() => page.getByLabel('Название').inputValue()).toBe('Без места')
+    } finally {
+      await page.close()
+    }
+  })
 })
