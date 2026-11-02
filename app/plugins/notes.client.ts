@@ -1,18 +1,21 @@
 import { useNotesStore } from '~/stores/notes'
+import { useEditorStore } from '~/stores/editor'
 import { NOTES_STORAGE_KEY } from '~/utils/schema'
 
 export default defineNuxtPlugin(() => {
   const notes = useNotesStore()
+  const editor = useEditorStore()
 
   notes.hydrate()
 
   const flush = () => {
     notes.flush()
+    editor.flushDraft()
   }
 
   const flushWhenHidden = () => {
     if (document.visibilityState === 'hidden') {
-      notes.flush()
+      flush()
     }
   }
 

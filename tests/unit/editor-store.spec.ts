@@ -110,6 +110,8 @@ describe('editor store init', () => {
 
     expect(editor.notFound).toBe(true)
     expect(editor.note).toBeNull()
+    expect(editor.checkExternalDeleted()).toBe(false)
+    expect(editor.externalDeleted).toBe(false)
   })
 })
 

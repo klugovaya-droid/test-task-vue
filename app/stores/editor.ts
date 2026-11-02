@@ -450,7 +450,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function checkExternalDeleted(): boolean {
-    if (mode.value !== 'edit' || !noteId.value) {
+    if (notFound.value || mode.value !== 'edit' || !noteId.value) {
       externalDeleted.value = false
       return false
     }
