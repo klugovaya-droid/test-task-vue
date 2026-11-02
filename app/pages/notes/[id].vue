@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TodoItem from '~/components/notes/TodoItem.vue'
 import AppButton from '~/components/ui/AppButton.vue'
 import AppInput from '~/components/ui/AppInput.vue'
+import BaseModal from '~/components/ui/BaseModal.vue'
 import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import { useEditorStore } from '~/stores/editor'
+import { useNotesStore } from '~/stores/notes'
 import { useToastStore } from '~/stores/toast'
 import {
   hasOpenModal,
@@ -23,6 +25,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const editor = useEditorStore()
+const notesStore = useNotesStore()
 const toast = useToastStore()
 
 const titleTouched = ref(false)
@@ -30,6 +33,7 @@ const newTodoText = ref('')
 const newTodoError = ref<string | null>(null)
 const cancelDialogOpen = ref(false)
 const deleteDialogOpen = ref(false)
+const recoveryOpen = ref(false)
 
 const noteId = computed(() => {
   const value = route.params.id
@@ -43,7 +47,11 @@ const noteId = computed(() => {
 
 const validation = computed(() => (editor.note ? validateNote(editor.note) : null))
 const canSave = computed(
-  () => Boolean(editor.note) && Boolean(validation.value?.valid) && editor.dirty
+  () =>
+    Boolean(editor.note) &&
+    Boolean(validation.value?.valid) &&
+    editor.dirty &&
+    !editor.externalDeleted
 )
 const titleError = computed(() =>
   titleTouched.value ? titleErrorMessage(validation.value?.title) : null
@@ -60,6 +68,25 @@ const deleteMessage = computed(() =>
     ? `«${editor.note.title}» будет удалена без возможности восстановления.`
     : ''
 )
+const recoveryDescription = computed(() => {
+  const draft = editor.pendingDraft
+
+  if (!draft) {
+    return ''
+  }
+
+  const savedAt = new Date(draft.savedAt)
+  const formatted = Number.isNaN(savedAt.getTime())
+    ? ''
+    : savedAt.toLocaleString('ru-RU', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      })
+
+  return formatted
+    ? `Найден черновик от ${formatted}. Восстановить изменения?`
+    : 'Найден несохранённый черновик. Восстановить изменения?'
+})
 
 watch(
   noteId,
@@ -70,8 +97,16 @@ watch(
     cancelDialogOpen.value = false
     deleteDialogOpen.value = false
     editor.init(id)
+    recoveryOpen.value = Boolean(editor.pendingDraft)
   },
   { immediate: true }
+)
+
+watch(
+  () => notesStore.notes,
+  () => {
+    editor.checkExternalDeleted()
+  }
 )
 
 onMounted(() => {
@@ -158,7 +193,16 @@ function handleAddTodo(): void {
 function handleSave(): void {
   titleTouched.value = true
 
-  if (!editor.note || !editor.dirty) {
+  if (!editor.note) {
+    return
+  }
+
+  if (editor.externalDeleted) {
+    toast.show('Заметка удалена в другой вкладке. Сохраните её как новую.', 'error')
+    return
+  }
+
+  if (!editor.dirty) {
     return
   }
 
@@ -208,6 +252,57 @@ function confirmDelete(): void {
   editor.deleteNote()
   toast.show(title ? `Заметка «${title}» удалена.` : 'Заметка удалена.')
   void router.push('/')
+}
+
+function handleSaveAsNew(): void {
+  titleTouched.value = true
+
+  if (!validation.value?.valid) {
+    toast.show('Проверьте название и задачи.', 'error')
+    return
+  }
+
+  const result = editor.saveAsNew()
+
+  if (!result.ok) {
+    toast.show(
+      result.reason === 'invalid'
+        ? 'Проверьте название и задачи.'
+        : 'Не удалось сохранить заметку.',
+      'error'
+    )
+    return
+  }
+
+  toast.show('Заметка сохранена как новая.')
+  void router.replace(`/notes/${result.note.id}`)
+}
+
+function leaveAfterExternalDelete(): void {
+  editor.cancel()
+  void router.push('/')
+}
+
+function restorePendingDraft(): void {
+  if (!editor.pendingDraft) {
+    recoveryOpen.value = false
+    return
+  }
+
+  if (editor.restoreDraft()) {
+    recoveryOpen.value = false
+    toast.show('Черновик восстановлен.')
+  }
+}
+
+function discardPendingDraft(): void {
+  const removed = editor.discardDraft()
+
+  recoveryOpen.value = false
+
+  if (!removed) {
+    toast.show('Не удалось удалить черновик.', 'error')
+  }
 }
 
 function todoError(todoId: string): string | null {
@@ -297,7 +392,11 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
             </AppButton>
           </div>
 
-          <AppButton v-if="!editor.isNew" variant="danger" @click="deleteDialogOpen = true">
+          <AppButton
+            v-if="!editor.isNew && !editor.externalDeleted"
+            variant="danger"
+            @click="deleteDialogOpen = true"
+          >
             Удалить
           </AppButton>
           <AppButton variant="secondary" @click="cancelDialogOpen = true">
@@ -306,6 +405,22 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
           <AppButton :disabled="!canSave" @click="handleSave">Сохранить</AppButton>
         </div>
       </header>
+
+      <div v-if="editor.externalDeleted" class="editor-page__external" role="alert">
+        <div>
+          <strong class="editor-page__external-title">Заметка удалена в другой вкладке.</strong>
+          <p class="editor-page__external-hint">
+            Рабочую копию можно сохранить как новую заметку.
+          </p>
+        </div>
+
+        <div class="editor-page__external-actions">
+          <AppButton variant="secondary" @click="leaveAfterExternalDelete">
+            Вернуться на главную
+          </AppButton>
+          <AppButton @click="handleSaveAsNew">Сохранить как новую</AppButton>
+        </div>
+      </div>
 
       <form class="editor-page__form" @submit.prevent="handleSave">
         <AppInput
@@ -388,6 +503,25 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
         @cancel="deleteDialogOpen = false"
         @confirm="confirmDelete"
       />
+
+      <BaseModal
+        :open="recoveryOpen"
+        title="Восстановить черновик?"
+        :description="recoveryDescription"
+        role="alertdialog"
+        size="sm"
+        :close-on-overlay="false"
+        :close-on-escape="false"
+        :show-close="false"
+        @escape="restorePendingDraft"
+      >
+        <template #footer>
+          <AppButton variant="secondary" @click="discardPendingDraft">
+            Удалить черновик
+          </AppButton>
+          <AppButton data-autofocus @click="restorePendingDraft">Восстановить</AppButton>
+        </template>
+      </BaseModal>
     </template>
   </section>
 </template>
@@ -465,6 +599,35 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
   &__history {
     display: flex;
     gap: var(--space-1);
+  }
+
+  &__external {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  &__external-title {
+    color: var(--color-danger);
+    font-size: 0.9375rem;
+  }
+
+  &__external-hint {
+    margin: var(--space-1) 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+
+  &__external-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
   &__form {
@@ -569,6 +732,17 @@ function todoErrorMessage(error: FieldError | null | undefined): string | null {
 
     &__form {
       padding: var(--space-4);
+    }
+
+    &__external {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    &__external-actions {
+      :deep(.app-button) {
+        flex: 1;
+      }
     }
 
     &__add-todo {

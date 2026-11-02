@@ -55,6 +55,16 @@ watch(
   { immediate: true }
 )
 
+watch(
+  panel,
+  (element) => {
+    if (element && props.open) {
+      focusInitial()
+    }
+  },
+  { flush: 'post' }
+)
+
 onBeforeUnmount(() => {
   if (!active) {
     return
@@ -76,16 +86,19 @@ async function activate(): Promise<void> {
   document.addEventListener('keydown', handleKeydown)
 
   await nextTick()
+  focusInitial()
+}
 
-  if (!active) {
+function focusInitial(): void {
+  if (!active || !panel.value) {
     return
   }
 
-  const preferred = panel.value?.querySelector<HTMLElement>('[data-autofocus]')
-  const fallback = panel.value ? getFocusableElements(panel.value)[0] : undefined
+  const preferred = panel.value.querySelector<HTMLElement>('[data-autofocus]')
+  const fallback = getFocusableElements(panel.value)[0]
   const target = preferred ?? fallback ?? panel.value
 
-  target?.focus()
+  target.focus()
 }
 
 function deactivate(restoreFocus = true): void {
