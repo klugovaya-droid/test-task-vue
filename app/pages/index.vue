@@ -2,18 +2,18 @@
 import { computed, ref } from 'vue'
 import type { Note } from '~/types/notes'
 import NoteCard from '~/components/notes/NoteCard.vue'
-import AppToast from '~/components/ui/AppToast.vue'
 import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import { useNotesStore } from '~/stores/notes'
+import { useToastStore } from '~/stores/toast'
 
 const notesStore = useNotesStore()
+const toast = useToastStore()
 
 notesStore.hydrate()
 
 const notes = computed(() => notesStore.sortedNotes)
 const noteToDelete = ref<Note | null>(null)
-const toastMessage = ref<string | null>(null)
 
 const deleteMessage = computed(() =>
   noteToDelete.value
@@ -38,7 +38,7 @@ function confirmDelete(): void {
 
   notesStore.deleteNote(target.id)
   noteToDelete.value = null
-  toastMessage.value = `Заметка «${target.title}» удалена.`
+  toast.show(`Заметка «${target.title}» удалена.`)
 }
 </script>
 
@@ -79,8 +79,6 @@ function confirmDelete(): void {
       @cancel="closeDeleteDialog"
       @confirm="confirmDelete"
     />
-
-    <AppToast :message="toastMessage" @dismiss="toastMessage = null" />
   </section>
 </template>
 

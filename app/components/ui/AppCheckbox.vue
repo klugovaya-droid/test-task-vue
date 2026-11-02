@@ -5,9 +5,11 @@ const props = withDefaults(
   defineProps<{
     label: string
     disabled?: boolean
+    labelHidden?: boolean
   }>(),
   {
-    disabled: false
+    disabled: false,
+    labelHidden: false
   }
 )
 
@@ -41,7 +43,12 @@ const inputId = `checkbox-${useId()}`
       </svg>
     </span>
 
-    <span class="app-checkbox__label">{{ label }}</span>
+    <span
+      class="app-checkbox__label"
+      :class="{ 'app-checkbox__label--hidden': props.labelHidden }"
+    >
+      {{ label }}
+    </span>
   </label>
 </template>
 
@@ -49,6 +56,7 @@ const inputId = `checkbox-${useId()}`
 .app-checkbox {
   position: relative;
   display: inline-flex;
+  min-width: 44px;
   min-height: 44px;
   align-items: center;
   gap: var(--space-3);
@@ -107,6 +115,15 @@ const inputId = `checkbox-${useId()}`
   &__input:focus-visible + &__box {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+  }
+
+  &__label--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 </style>
