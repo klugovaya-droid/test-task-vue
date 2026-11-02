@@ -70,6 +70,14 @@ describe('isEditableTarget', () => {
     const checkbox = document.createElement('input')
     checkbox.type = 'checkbox'
     expect(isEditableTarget(checkbox)).toBe(false)
+
+    const submit = document.createElement('input')
+    submit.type = 'submit'
+    expect(isEditableTarget(submit)).toBe(false)
+
+    const number = document.createElement('input')
+    number.type = 'number'
+    expect(isEditableTarget(number)).toBe(true)
   })
 
   it('ignores non-element targets', () => {

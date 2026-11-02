@@ -37,6 +37,7 @@ describe('getFocusableElements', () => {
       <div id="custom" tabindex="0">Custom</div>
       <div id="skipped" tabindex="-1">Skipped</div>
       <div aria-hidden="true"><button id="hidden-ancestor">Hidden</button></div>
+      <div hidden><button id="hidden-attribute">Hidden attribute</button></div>
     `)
 
     expect(getFocusableElements(container).map((element) => element.id)).toEqual([
@@ -76,6 +77,14 @@ describe('getNextFocusTarget', () => {
 
   it('returns null when there is nothing to focus', () => {
     expect(getNextFocusTarget(createContainer('<p>Text</p>'), null)).toBeNull()
+  })
+
+  it('keeps focus on a single element in both directions', () => {
+    const single = createContainer('<button id="only">Only</button>')
+    const only = byId(single, 'only')
+
+    expect(getNextFocusTarget(single, only)?.id).toBe('only')
+    expect(getNextFocusTarget(single, only, true)?.id).toBe('only')
   })
 })
 
