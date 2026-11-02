@@ -58,12 +58,27 @@ export const useEditorStore = defineStore('editor', () => {
   const storageError = ref<string | null>(null)
   const canUndo = ref(false)
   const canRedo = ref(false)
+  const pendingTextEdit = ref<PendingTextEdit | null>(null)
 
   const isNew = computed(() => mode.value === 'create')
+  const hasPendingTextEdit = computed(() => {
+    const pending = pendingTextEdit.value
+
+    if (!pending || !note.value) {
+      return false
+    }
+
+    if (pending.kind === 'title') {
+      return note.value.title !== pending.before
+    }
+
+    const todo = note.value.todos.find((item) => item.id === pending.todoId)
+
+    return Boolean(todo && normalizeTodoText(todo.text) && todo.text !== pending.before)
+  })
 
   const history = new DeltaHistory()
 
-  let pendingTextEdit: PendingTextEdit | null = null
   let draftTimer: ReturnType<typeof setTimeout> | null = null
 
   function init(targetId: string): void {
@@ -117,8 +132,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function commitTextEdit(): boolean {
-    const pending = pendingTextEdit
-    pendingTextEdit = null
+    const pending = pendingTextEdit.value
+    pendingTextEdit.value = null
 
     if (!pending || !note.value) {
       return false
@@ -363,7 +378,7 @@ export const useEditorStore = defineStore('editor', () => {
     clearDraftTimer()
     clearStoredDraft(currentId)
     history.clear()
-    pendingTextEdit = null
+    pendingTextEdit.value = null
     pendingDraft.value = null
     dirty.value = false
     externalDeleted.value = false
@@ -387,7 +402,7 @@ export const useEditorStore = defineStore('editor', () => {
     clearDraftTimer()
     clearStoredDraft(currentDraftId())
     history.clear()
-    pendingTextEdit = null
+    pendingTextEdit.value = null
     pendingDraft.value = null
     note.value = null
     noteId.value = null
@@ -411,7 +426,7 @@ export const useEditorStore = defineStore('editor', () => {
     pendingDraft.value = null
     dirty.value = true
     history.clear()
-    pendingTextEdit = null
+    pendingTextEdit.value = null
     syncHistoryFlags()
     scheduleDraft()
 
@@ -456,15 +471,17 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function beginTextEdit(edit: PendingTextEdit): void {
-    if (pendingTextEdit) {
-      if (hasSameTextTarget(pendingTextEdit, edit)) {
+    const pending = pendingTextEdit.value
+
+    if (pending) {
+      if (hasSameTextTarget(pending, edit)) {
         return
       }
 
       commitTextEdit()
     }
 
-    pendingTextEdit = edit
+    pendingTextEdit.value = edit
     history.beginTextEdit(toTextEditField(edit), edit.before)
   }
 
@@ -551,7 +568,7 @@ export const useEditorStore = defineStore('editor', () => {
     notFound.value = false
     externalDeleted.value = false
     pendingDraft.value = null
-    pendingTextEdit = null
+    pendingTextEdit.value = null
     history.clear()
     clearDraftTimer()
     syncHistoryFlags()
@@ -560,7 +577,7 @@ export const useEditorStore = defineStore('editor', () => {
   function resetSession(): void {
     clearDraftTimer()
     history.clear()
-    pendingTextEdit = null
+    pendingTextEdit.value = null
     note.value = null
     mode.value = 'create'
     noteId.value = null
@@ -596,6 +613,7 @@ export const useEditorStore = defineStore('editor', () => {
     storageError,
     canUndo,
     canRedo,
+    hasPendingTextEdit,
     isNew,
     init,
     beginTitleEdit,
