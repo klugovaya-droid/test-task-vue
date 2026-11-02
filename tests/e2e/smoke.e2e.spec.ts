@@ -35,7 +35,11 @@ describe('home page', () => {
         .toBe('Заметки')
 
       await expect
-        .poll(async () => page.getByText('Скоро здесь появится список заметок и их задач.').isVisible())
+        .poll(() => page.getByRole('heading', { name: 'Пока нет заметок' }).isVisible())
+        .toBe(true)
+
+      await expect
+        .poll(() => page.getByRole('link', { name: 'Создать заметку' }).first().isVisible())
         .toBe(true)
     } finally {
       await page.close()
