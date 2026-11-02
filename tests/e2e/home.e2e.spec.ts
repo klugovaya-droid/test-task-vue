@@ -190,4 +190,32 @@ describe('home page', () => {
       await page.close()
     }
   })
+
+  it('keeps a backup and shows a notice for corrupt storage', async () => {
+    const page = await browser.newPage()
+    const raw = '{"version":1,"notes":['
+
+    try {
+      await page.addInitScript((value: string) => {
+        localStorage.setItem('notes-app:data', value)
+      }, raw)
+      await page.goto(baseUrl)
+
+      await expect
+        .poll(() =>
+          page
+            .getByText('Сохранённые заметки повреждены. Открыт пустой список.')
+            .isVisible()
+        )
+        .toBe(true)
+      await expect
+        .poll(() => page.getByRole('heading', { name: 'Пока нет заметок' }).isVisible())
+        .toBe(true)
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem('notes-app:backup')))
+        .toBe(raw)
+    } finally {
+      await page.close()
+    }
+  })
 })

@@ -1,8 +1,35 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import AppToast from '~/components/ui/AppToast.vue'
+import { useEditorStore } from '~/stores/editor'
+import { useNotesStore } from '~/stores/notes'
 import { useToastStore } from '~/stores/toast'
 
 const toast = useToastStore()
+const notes = useNotesStore()
+const editor = useEditorStore()
+
+function showError(message: string | null): void {
+  if (message) {
+    toast.show(message, 'error')
+  }
+}
+
+watch(
+  () => notes.loadWarning,
+  (message) => {
+    if (!message) {
+      return
+    }
+
+    toast.show(message, 'error')
+    notes.dismissLoadWarning()
+  },
+  { immediate: true }
+)
+
+watch(() => notes.storageError, showError, { immediate: true })
+watch(() => editor.storageError, showError, { immediate: true })
 </script>
 
 <template>

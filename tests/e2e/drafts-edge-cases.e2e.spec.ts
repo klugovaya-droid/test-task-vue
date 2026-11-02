@@ -163,6 +163,36 @@ describe('draft recovery', () => {
       await page.close()
     }
   })
+
+  it('shows a warning when a draft cannot be written', async () => {
+    const page = await browser.newPage()
+
+    try {
+      await page.addInitScript(() => {
+        localStorage.setItem('notes-app:data', JSON.stringify({ version: 1, notes: [] }))
+
+        const originalSetItem = Storage.prototype.setItem
+
+        Storage.prototype.setItem = function (key: string, value: string) {
+          if (key.startsWith('notes-app:draft:')) {
+            throw new Error('Quota exceeded')
+          }
+
+          originalSetItem.call(this, key, value)
+        }
+      })
+
+      await page.goto(`${baseUrl}/notes/new`)
+      await page.getByLabel('Название').fill('Без черновика')
+
+      await expect
+        .poll(() => page.getByText('Не удалось сохранить черновик в браузере.').isVisible())
+        .toBe(true)
+      await expect.poll(() => page.getByLabel('Название').inputValue()).toBe('Без черновика')
+    } finally {
+      await page.close()
+    }
+  })
 })
 
 describe('external deletion', () => {
